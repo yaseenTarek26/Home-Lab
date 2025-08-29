@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Caddyfile regeneration every 1 minute
+Requires=caddy-reload.service
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=caddy-reload.service
+
+[Install]
+WantedBy=timers.target

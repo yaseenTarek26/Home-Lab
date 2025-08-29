@@ -4,8 +4,11 @@ After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/path/to/home-lab/common/scripts/git-sync.sh
-User=your-user
-Group=your-group
+ExecStart=/opt/home-lab/common/scripts/git-sync.sh
+User=root
+Group=root
 StandardOutput=journal
 StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
