@@ -1,0 +1,10 @@
+[Unit]
+Description=Redeploy homelab services after git sync
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=3min
+Unit=docker-redeploy-homelab.service
+
+[Install]
+WantedBy=timers.target

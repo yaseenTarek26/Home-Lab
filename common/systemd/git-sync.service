@@ -1,0 +1,11 @@
+[Unit]
+Description=Sync home-lab repository from GitHub
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/path/to/home-lab/common/scripts/git-sync.sh
+User=your-user
+Group=your-group
+StandardOutput=journal
+StandardError=journal

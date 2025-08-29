@@ -1,0 +1,10 @@
+[Unit]
+Description=Run git sync every 2 minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=2min
+Unit=git-sync.service
+
+[Install]
+WantedBy=timers.target

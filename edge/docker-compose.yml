@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  caddy:
+    image: caddy:latest
+    container_name: edge-caddy
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+    networks:
+      - edge-net
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    container_name: edge-duckdns
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+      - SUBDOMAINS=yourusername
+      - TOKEN=your-duckdns-token
+      - UPDATE_IP=ipv4
+      - LOG_FILE=false
+    volumes:
+      - duckdns_config:/config
+    restart: unless-stopped
+    networks:
+      - edge-net
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: edge-watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=3600
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+    restart: unless-stopped
+    networks:
+      - edge-net
+
+networks:
+  edge-net:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
+  duckdns_config:
