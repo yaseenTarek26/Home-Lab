@@ -12,67 +12,61 @@ services:
       - EDGE_SERVER_URL=http://edge-server:8080
     command: |
       sh -c '
-      apk add --no-cache curl jq docker-cli
+      apk add --no-cache curl jq
       
       while true; do
         echo "Scanning for containers with Caddy labels..."
         
-        # Initialize JSON array
-        echo "[]" > /tmp/services.json
+        # Get all running containers with caddy.expose=true
+        containers=$(docker ps --format "{{.Names}}" | while read name; do
+          if docker inspect "$name" --format "{{.Config.Labels.caddy.expose}}" | grep -q "true"; then
+            echo "$name"
+          fi
+        done)
         
-        # Get all running containers
-        docker ps --format "{{.Names}}" | while read -r container_name; do
-          if [ -n "$container_name" ]; then
-            # Check if container has caddy.expose=true label
-            expose_label=$(docker inspect "$container_name" --format "{{index .Config.Labels "caddy.expose"}}" 2>/dev/null || echo "")
+        # Generate report for each container
+        report=""
+        for container in $containers; do
+          labels=$(docker inspect "$container" --format "{{json .Config.Labels}}")
+          name=$(docker inspect "$container" --format "{{.Name}}")
+          
+          # Extract Caddy labels
+          expose=$(echo "$labels" | jq -r ".caddy.expose // empty")
+          path=$(echo "$labels" | jq -r ".caddy.path // empty")
+          host_port=$(echo "$labels" | jq -r ".caddy.host_port // empty")
+          root=$(echo "$labels" | jq -r ".caddy.root // empty")
+          fqdn=$(echo "$labels" | jq -r ".caddy.fqdn // empty")
+          
+          if [[ "$expose" == "true" ]]; then
+            # Get container port mapping
+            port_mapping=$(docker port "$container" 2>/dev/null | head -1 | cut -d: -f2 || echo "")
             
-            if [ "$expose_label" = "true" ]; then
-              echo "Found exposed container: $container_name"
-              
-              # Extract all caddy labels safely
-              path_label=$(docker inspect "$container_name" --format "{{index .Config.Labels "caddy.path"}}" 2>/dev/null || echo "")
-              host_port_label=$(docker inspect "$container_name" --format "{{index .Config.Labels "caddy.host_port"}}" 2>/dev/null || echo "")
-              root_label=$(docker inspect "$container_name" --format "{{index .Config.Labels "caddy.root"}}" 2>/dev/null || echo "")
-              fqdn_label=$(docker inspect "$container_name" --format "{{index .Config.Labels "caddy.fqdn"}}" 2>/dev/null || echo "")
-              container_id=$(docker inspect "$container_name" --format "{{.Id}}" 2>/dev/null || echo "")
-              
-              # Get container port mapping if host_port not specified
-              if [ -z "$host_port_label" ]; then
-                port_mapping=$(docker port "$container_name" 2>/dev/null | head -1 | cut -d: -f2 || echo "")
-                host_port_label="$port_mapping"
-              fi
-              
-              # Create JSON object for this service
-              service_json=$(jq -n \
-                --arg name "$container_name" \
-                --arg path "$path_label" \
-                --arg host_port "$host_port_label" \
-                --arg root "$root_label" \
-                --arg fqdn "$fqdn_label" \
-                --arg container_id "$container_id" \
-                "{
-                  name: \$name,
-                  path: \$path,
-                  host_port: \$host_port,
-                  root: \$root,
-                  fqdn: \$fqdn,
-                  source: "docker-inspect",
-                  container_id: \$container_id,
-                  timestamp: now
-                }")
-              
-              # Add to services array
-              jq --argjson service "$service_json" ". += [\$service]" /tmp/services.json > /tmp/services_new.json
-              mv /tmp/services_new.json /tmp/services.json
+            # If no host_port specified, try to derive from port mapping
+            if [[ -z "$host_port" && -n "$port_mapping" ]]; then
+              host_port="$port_mapping"
             fi
+            
+            # Add to report
+            service_report=$(cat <<EOF
+{
+  "name": "$name",
+  "path": "$path",
+  "host_port": "$host_port",
+  "root": "$root",
+  "fqdn": "$fqdn",
+  "source": "docker-inspect",
+  "container_id": "$(docker inspect "$container" --format "{{.Id}}")"
+}
+EOF
+)
+            report="$report$service_report"$'\n'
           fi
         done
         
-        # Write final report
-        cp /tmp/services.json /reports/caddy-services.json
+        # Write report to file
+        echo "$report" > /reports/caddy-services.json
         
-        service_count=$(jq length /reports/caddy-services.json)
-        echo "Report generated with $service_count services at $(date)"
+        echo "Report generated with $(echo "$report" | wc -l) services"
         
         # Sleep before next scan
         sleep ${REPORT_INTERVAL:-30}
