@@ -21,6 +21,14 @@ error_exit() {
     exit 1
 }
 
+# Run validation checks
+log_info "Running pre-installation validation..."
+if ! bash common/scripts/validate-setup.sh; then
+    error_exit "Pre-installation validation failed"
+fi
+    exit 1
+}
+
 # Cleanup function for interrupted installations
 cleanup() {
     log_warning "Installation interrupted. Cleaning up..."
