@@ -5,17 +5,21 @@ services:
     image: nginx:alpine
     container_name: homelab-website
     volumes:
-      - ./website:/usr/share/nginx/html:ro
+      - .:/usr/share/nginx/html:ro 
     ports:
       - "8080:80"
+    restart: unless-stopped
     networks:
       - homelab-net
-    restart: unless-stopped
     labels:
-      - "caddy.subdomain=website"
-      - "caddy.port=80"
       - "com.centurylinklabs.watchtower.enable=true"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 networks:
   homelab-net:
-    external: true
+    external: true    # Use the existing network from main compose file
