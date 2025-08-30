@@ -60,7 +60,7 @@ echo "🚀 Starting services..."
 
 # Start Docker Compose
 cd "$EDGE_DIR"
-sudo docker-compose up -d
+sudo docker compose up -d
 
 # Enable and start timers
 sudo systemctl enable caddy-reload.timer

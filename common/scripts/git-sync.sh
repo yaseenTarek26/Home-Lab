@@ -1,18 +1,5 @@
 
 #!/bin/bash
-
-# Navigate to repo root
-cd /path/to/home-lab
-
-# Pull latest changes
-git fetch origin
-git reset --hard origin/main
-
-# Log the sync
-echo "$(date): Repository synced successfully" >> /var/log/git-sync.log
-
-exit 0
-#!/bin/bash
 set -e
 
 LOG_FILE="/var/log/git-sync.log"

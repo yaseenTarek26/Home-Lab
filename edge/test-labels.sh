@@ -48,7 +48,7 @@ if docker ps --format '{{.Names}}' | grep -q "edge-caddy"; then
         echo "   ⚠ Caddy reload failed (this might be normal if no changes)"
     fi
 else
-    echo "   ⚠ Caddy container is not running (start with: docker-compose up -d)"
+    echo "   ⚠ Caddy container is not running (start with: docker compose up -d)"
 fi
 
 # Test 6: Check systemd services

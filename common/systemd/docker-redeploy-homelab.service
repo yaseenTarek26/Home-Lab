@@ -6,7 +6,7 @@ Requires=git-sync.service
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/home-lab/homelab
-ExecStart=/bin/bash -c 'find . -name "docker-compose.yml" -execdir docker compose up -d \;'
+ExecStart=/bin/bash -c 'find . -name "docker-compose.yml" -execdir /usr/local/bin/docker compose up -d \;'
 User=root
 Group=docker
 

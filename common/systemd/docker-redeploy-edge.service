@@ -6,7 +6,7 @@ Requires=git-sync.service
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/home-lab/edge
-ExecStart=/usr/local/bin/docker-compose up -d
+ExecStart=/usr/local/bin/docker compose up -d
 User=root
 Group=docker
 
