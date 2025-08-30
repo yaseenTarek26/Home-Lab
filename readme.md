@@ -482,127 +482,110 @@ docker stats
 ### **Backup Important Data:**
 
 ```bash
-# Backup service configurations
-tar -czf homelab-backup-$(date +%Y%m%d).tar.gz homelab/
-
-# Backup Docker volumes
-docker run --rm -v homelab_plex_config:/data -v $(pwd):/backup alpine tar czf /backup/plex-config-backup.tar.gz /data
+# Complete system reset
+sudo systemctl stop git-sync.timer docker-redeploy-*.timer caddy-reload.timer
+docker compose down
+docker system prune -a --volumes
+sudo ./setup-complete.sh
 ```
+
+## 🎯 **Benefits**
+
+✅ **Hybrid Routing**: Support both path and subdomain routing  
+✅ **Modular Architecture**: Clean, maintainable codebase  
+✅ **Service Discovery**: Automatic detection of all labeled services  
+✅ **CasaOS Compatible**: No conflicts with existing setups  
+✅ **Validation**: Comprehensive error checking and validation  
+✅ **Future-Proof**: Easy to extend and modify  
+✅ **Production-Ready**: Robust error handling and logging  
+
+## 📝 **Example Services**
+
+### **Website (Root Site)**
+```yaml
+website:
+  image: nginx:alpine
+  ports:
+    - "8080:80"
+  labels:
+    caddy.expose: "true"
+    caddy.root: "true"          # This service becomes the root site
+    caddy.host_port: "8080"
+```
+
+### **Plex Media Server**
+```yaml
+plex:
+  image: plexinc/pms-docker:latest
+  ports:
+    - "32400:32400"
+  labels:
+    caddy.expose: "true"
+    caddy.path: "/plex"
+    caddy.host_port: "32400"
+```
+
+### **Jellyfin Media Server**
+```yaml
+jellyfin:
+  image: jellyfin/jellyfin:latest
+  ports:
+    - "8096:8096"
+  labels:
+    caddy.expose: "true"
+    caddy.path: "/jellyfin"
+    caddy.host_port: "8096"
+```
+
+### **Portainer (Docker Management)**
+```yaml
+portainer:
+  image: portainer/portainer-ce:latest
+  ports:
+    - "9000:9000"
+  labels:
+    caddy.expose: "true"
+    caddy.path: "/portainer"
+    caddy.host_port: "9000"
+```
+
+## 🔒 **Security Considerations**
+
+### **Docker Socket Exposure**
+- Watchtower mounts `/var/run/docker.sock` (normal but high-risk)
+- Consider using `docker-socket-proxy` for production
+
+### **Firewall Configuration**
+- Ensure homelab firewall allows Tailscale ingress on service ports
+- Edge server needs ports 80/443 open
+
+### **Secrets Management**
+- Use `.env` files for sensitive configuration
+- Never commit tokens or secrets to Git
+
+## 🚀 **Advanced Features**
+
+### **FQDN Support**
+For real domains with wildcard DNS:
+```yaml
+labels:
+  caddy.expose: "true"
+  caddy.fqdn: "plex.example.com"
+  caddy.host_port: "32400"
+```
+
+### **Multiple Root Services**
+Last service with `caddy.root: "true"` wins:
+```yaml
+labels:
+  caddy.expose: "true"
+  caddy.root: "true"
+  caddy.host_port: "8080"
+```
+
+### **Automatic Port Detection**
+Label reporter can auto-detect ports if `caddy.host_port` is not specified.
 
 ---
 
-## 🚨 **Troubleshooting**
-
-### **Common Issues:**
-
-#### **1. Services not accessible externally**
-
-**Symptoms:** Can access locally but not via DuckDNS domain
-
-**Solutions:**
-```bash
-# Check Tailscale connectivity
-tailscale status
-ping homelab-tailscale-ip
-
-# Check Caddy logs
-docker logs edge-caddy
-
-# Verify Caddyfile syntax
-docker exec edge-caddy caddy validate --config /etc/caddy/Caddyfile
-
-# Check DuckDNS IP
-nslookup yourdomain.duckdns.org
-```
-
-#### **2. Git sync not working**
-
-**Symptoms:** Changes pushed but not deployed
-
-**Solutions:**
-```bash
-# Check git sync status
-sudo systemctl status git-sync.timer
-sudo journalctl -u git-sync.service -n 20
-
-# Manual git sync test
-cd /path/to/home-lab
-git fetch origin
-git status
-
-# Check file permissions
-ls -la common/scripts/git-sync.sh
-chmod +x common/scripts/git-sync.sh
-```
-
-#### **3. Docker compose deployment fails**
-
-**Symptoms:** Services not starting after git sync
-
-**Solutions:**
-```bash
-# Check deployment logs
-sudo journalctl -u docker-redeploy-homelab.service -n 20
-
-# Manual deployment test
-cd homelab/service-name
-docker compose config  # Validate syntax
-docker compose up -d
-
-# Check Docker daemon
-sudo systemctl status docker
-docker system df  # Check disk space
-```
-
-#### **4. SSL certificate issues**
-
-**Symptoms:** HTTPS not working, certificate errors
-
-**Solutions:**
-```bash
-# Check Caddy logs for certificate errors
-docker logs edge-caddy | grep -i cert
-
-# Force certificate renewal
-docker exec edge-caddy caddy reload --config /etc/caddy/Caddyfile
-
-# Verify domain accessibility
-curl -I https://yourdomain.duckdns.org
-```
-
-#### **5. Port conflicts**
-
-**Symptoms:** Services failing to start with port binding errors
-
-**Solutions:**
-```bash
-# Check port usage
-sudo netstat -tulpn | grep :8080
-sudo ss -tulpn | grep :8080
-
-# Find conflicting services
-docker ps --format "table {{.Names}}\t{{.Ports}}"
-
-# Update port mappings in docker-compose.yml
-```
-
-### **Emergency Recovery:**
-
-#### **Complete system reset:**
-```bash
-# Stop all services
-docker compose down
-sudo systemctl stop git-sync.timer docker-redeploy-homelab.timer
-
-# Remove all containers and volumes
-docker system prune -a --volumes
-
-# Redeploy from scratch
-git pull origin main
-docker compose up -d
-```
-
-#### **Rollback to previous version:**
-```bash
-# Check git history
-git 
+**Happy self-hosting! 🚀**
