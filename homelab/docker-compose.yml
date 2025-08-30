@@ -5,17 +5,38 @@ services:
     image: nginx:alpine
     container_name: homelab-website
     volumes:
-      - ./website:/usr/share/nginx/html:ro
+      - ./website/index.html:/usr/share/nginx/html/index.html:ro
+      - ./website/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
       - "8080:80"
+    restart: unless-stopped
     networks:
       - homelab-net
-    restart: unless-stopped
     labels:
-      caddy.expose: "true"
-      caddy.root: "true"          # this service becomes the root site
-      caddy.host_port: "8080"     # host-side port (left side of HOST:CONTAINER)
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # Add future homelab services here (Plex, Nextcloud, etc.)
+  # plex:
+  #   image: plexinc/pms-docker
+  #   ...
+  
+  # jellyfin:
+  #   image: jellyfin/jellyfin
+  #   ...
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: homelab-watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=3600
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+    restart: unless-stopped
+    networks:
+      - homelab-net
 
 networks:
   homelab-net:
-    external: true
+    driver: bridge
