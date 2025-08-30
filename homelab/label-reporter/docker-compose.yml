@@ -10,6 +10,8 @@ services:
     environment:
       - REPORT_INTERVAL=30
       - EDGE_SERVER_URL=http://edge-server:8080
+    networks:
+      - homelab-net
     command: >-
       sh -c '
       apk add --no-cache curl jq &&
@@ -85,3 +87,7 @@ services:
         # Sleep for specified interval
         sleep ${REPORT_INTERVAL:-30}
       done'
+
+networks:
+  homelab-net:
+    external: true
