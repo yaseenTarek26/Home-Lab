@@ -1,0 +1,9 @@
+[Unit]
+Description=Timer to redeploy Docker containers
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target

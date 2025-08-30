@@ -1,0 +1,38 @@
+# Replace 'your-domain.com' with your actual domain
+# Replace 'HOMELAB_TAILSCALE_IP' with your homelab's Tailscale IP
+
+your-domain.com {
+    # Reverse proxy to homelab website service
+    reverse_proxy HOMELAB_TAILSCALE_IP:8080
+    
+    # Enable compression
+    encode gzip
+    
+    # Security headers
+    header {
+        # Enable HSTS
+        Strict-Transport-Security max-age=31536000;
+        # Prevent MIME sniffing
+        X-Content-Type-Options nosniff
+        # Prevent clickjacking
+        X-Frame-Options DENY
+        # XSS protection
+        X-XSS-Protection "1; mode=block"
+    }
+    
+    # Logging
+    log {
+        output file /var/log/caddy/access.log
+        format single_field common_log
+    }
+}
+
+# Health check endpoint for the edge server itself
+health.your-domain.com {
+    respond "Edge server healthy" 200
+}
+
+# Catch-all for undefined subdomains
+*.your-domain.com {
+    respond "Service not found" 404
+}

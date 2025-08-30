@@ -1,0 +1,12 @@
+[Unit]
+Description=Docker redeploy service for home-lab
+After=git-sync.service
+Wants=git-sync.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/home-lab
+ExecStart=/opt/home-lab/common/scripts/docker-redeploy.sh
+StandardOutput=journal
+StandardError=journal
