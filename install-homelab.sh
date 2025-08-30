@@ -33,7 +33,12 @@ cleanup() {
 # Set trap for cleanup on script interruption
 trap cleanup SIGINT SIGTERM
 
-echo "🏠 Installing Homelab Server..."
+# Configuration variables
+REPO_DIR="/opt/home-lab"
+LOG_FILE="/var/log/homelab-install.log"
+
+echo "🏠 Homelab Server Installation Script"
+echo "===================================="
 
 # Check if running as root
 if [[ $EUID -ne 0 ]]; then
@@ -340,4 +345,236 @@ Unattended-Upgrade::Allowed-Origins {
 Unattended-Upgrade::AutoFixInterruptedDpkg "true";
 Unattended-Upgrade::MinimalSteps "true";
 Unattended-Upgrade::Remove-Unused-Dependencies "true";
-Unattended-Upgrade::Automatic-
+Unattended-Upgrade::Automatic-Reboot "false";
+Unattended-Upgrade::Automatic-Reboot-Time "02:00";
+EOF
+
+    # Enable automatic security updates
+    cat > /etc/apt/apt.conf.d/20auto-upgrades << 'EOF'
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Download-Upgradeable-Packages "1";
+APT::Periodic::AutocleanInterval "7";
+APT::Periodic::Unattended-Upgrade "1";
+EOF
+
+    log_success "Automatic security updates configured"
+}
+
+# Function to get configuration from user
+get_configuration() {
+    log_info "Getting configuration details..."
+    
+    # Get repository URL
+    REPO_URL=$(get_input "Enter your GitHub repository URL" "https://github.com/yourusername/home-lab.git" "")
+    
+    # Get timezone
+    TIMEZONE=$(get_input "Enter your timezone" "$(timedatectl show --property=Timezone --value 2>/dev/null || echo 'America/New_York')" "")
+    
+    # Get Tailscale setup preference
+    read -p "Do you want to install Tailscale? (Y/n): " install_tailscale
+    if [[ ! "$install_tailscale" =~ ^[Nn]$ ]]; then
+        INSTALL_TAILSCALE=true
+        log_info "Tailscale will be installed"
+    else
+        INSTALL_TAILSCALE=false
+        log_warning "Tailscale will not be installed. You'll need to configure it manually."
+    fi
+    
+    # Confirm configuration
+    echo
+    log_info "Configuration Summary:"
+    echo "  Repository URL: $REPO_URL"
+    echo "  Timezone: $TIMEZONE"
+    echo "  Install Tailscale: $INSTALL_TAILSCALE"
+    echo
+    
+    read -p "Is this configuration correct? (y/N): " confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        log_info "Please run the script again with correct configuration."
+        exit 1
+    fi
+}
+
+# Function to install Tailscale
+install_tailscale() {
+    if [[ "$INSTALL_TAILSCALE" == "true" ]]; then
+        log_info "Installing Tailscale..."
+        
+        # Install Tailscale
+        if ! curl -fsSL https://tailscale.com/install.sh | sh; then
+            error_exit "Failed to install Tailscale"
+        fi
+        
+        # Start Tailscale
+        if ! systemctl start tailscaled; then
+            error_exit "Failed to start Tailscale daemon"
+        fi
+        
+        if ! systemctl enable tailscaled; then
+            error_exit "Failed to enable Tailscale daemon"
+        fi
+        
+        log_success "Tailscale installed successfully"
+        log_info "Please run 'tailscale up' to connect to your network"
+        log_info "Your Tailscale IP will be needed for edge server configuration"
+    fi
+}
+
+# Function to setup Docker network
+setup_docker_network() {
+    log_info "Setting up Docker network..."
+    
+    # Create homelab network if it doesn't exist
+    if ! docker network ls | grep -q "homelab-net"; then
+        if ! docker network create homelab-net; then
+            error_exit "Failed to create homelab-net Docker network"
+        fi
+        log_success "Created homelab-net Docker network"
+    else
+        log_warning "homelab-net Docker network already exists"
+    fi
+}
+
+# Function to deploy initial services
+deploy_services() {
+    log_info "Deploying initial services..."
+    
+    cd "$REPO_DIR/homelab"
+    
+    # Start Docker services
+    if ! docker compose up -d; then
+        error_exit "Failed to start Docker services"
+    fi
+    
+    # Wait for services to be ready
+    log_info "Waiting for services to be ready..."
+    sleep 10
+    
+    # Verify services are running
+    local container_count=$(docker ps --format '{{.Names}}' | grep -c "homelab-" || echo "0")
+    if [[ $container_count -gt 0 ]]; then
+        log_success "Found $container_count homelab containers running"
+    else
+        log_warning "No homelab containers are running"
+    fi
+    
+    log_success "Initial services deployed successfully"
+}
+
+# Function to run final tests
+run_tests() {
+    log_info "Running final tests..."
+    
+    # Test Docker containers
+    local container_count=$(docker ps --format '{{.Names}}' | grep -c "homelab-" || echo "0")
+    if [[ $container_count -gt 0 ]]; then
+        log_success "Found $container_count homelab containers running"
+        echo "Running containers:"
+        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep "homelab-" | sed 's/^/  /'
+    else
+        log_warning "No homelab containers are running"
+    fi
+    
+    # Test systemd services
+    services=("git-sync.timer" "docker-redeploy-homelab.timer")
+    for service in "${services[@]}"; do
+        if systemctl is-active --quiet "$service"; then
+            log_success "$service is active"
+        else
+            log_warning "$service is not active"
+        fi
+    done
+    
+    # Test Docker network
+    if docker network ls | grep -q "homelab-net"; then
+        log_success "homelab-net Docker network exists"
+    else
+        log_warning "homelab-net Docker network not found"
+    fi
+}
+
+# Function to get user input with validation
+get_input() {
+    local prompt="$1"
+    local default="$2"
+    local validation="$3"
+    local input
+    
+    while true; do
+        if [[ -n "$default" ]]; then
+            read -p "$prompt [$default]: " input
+            input="${input:-$default}"
+        else
+            read -p "$prompt: " input
+        fi
+        
+        if [[ -n "$input" ]]; then
+            if [[ -n "$validation" ]]; then
+                if eval "$validation"; then
+                    echo "$input"
+                    return 0
+                else
+                    log_warning "Invalid input. Please try again."
+                fi
+            else
+                echo "$input"
+                return 0
+            fi
+        else
+            log_warning "Input cannot be empty. Please try again."
+        fi
+    done
+}
+
+# Main installation function
+main() {
+    echo "$(date): Starting homelab server installation..." >> "$LOG_FILE"
+    
+    # Run installation steps
+    detect_os
+    check_requirements
+    backup_existing
+    update_system
+    install_docker
+    get_configuration
+    setup_repository
+    install_systemd_services
+    configure_firewall
+    setup_security_updates
+    install_tailscale
+    setup_docker_network
+    deploy_services
+    run_tests
+    
+    echo "$(date): Homelab server installation completed successfully" >> "$LOG_FILE"
+    
+    # Show final status
+    echo
+    log_success "🎉 Homelab server installation completed successfully!"
+    echo
+    echo "📋 Services Status:"
+    systemctl status git-sync.timer --no-pager -l
+    systemctl status docker-redeploy-homelab.timer --no-pager -l
+    echo
+    echo "🐳 Docker Containers:"
+    docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+    echo
+    echo "🔍 Next Steps:"
+    echo "  1. Configure your services in /opt/home-lab/homelab/docker-compose.yml"
+    echo "  2. Push changes to your GitHub repository"
+    echo "  3. Services will be automatically deployed"
+    if [[ "$INSTALL_TAILSCALE" == "true" ]]; then
+        echo "  4. Run 'tailscale up' to connect to your Tailscale network"
+        echo "  5. Note your Tailscale IP for edge server configuration"
+    fi
+    echo
+    echo "📚 Useful Commands:"
+    echo "  - View logs: tail -f /var/log/git-sync.log"
+    echo "  - Check services: docker ps"
+    echo "  - Restart services: systemctl restart docker-redeploy-homelab.timer"
+    echo "  - Check Tailscale: tailscale status"
+    echo
+}
+
+# Run main function
+main "$@"

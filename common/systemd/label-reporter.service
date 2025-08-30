@@ -1,0 +1,16 @@
+[Unit]
+Description=Label Reporter for Caddy Services
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/home-lab/homelab/label-reporter
+ExecStart=/opt/home-lab/homelab/label-reporter/report-labels.sh
+User=root
+Group=docker
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

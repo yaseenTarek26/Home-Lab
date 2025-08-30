@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  website:
+    image: nginx:alpine
+    container_name: homelab-website
+    volumes:
+      - ./website:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
+    networks:
+      - homelab-net
+    restart: unless-stopped
+    labels:
+      - "caddy.subdomain=website"
+      - "caddy.port=80"
+      - "com.centurylinklabs.watchtower.enable=true"
+
+networks:
+  homelab-net:
+    external: true

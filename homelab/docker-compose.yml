@@ -12,76 +12,10 @@ services:
       - homelab-net
     restart: unless-stopped
     labels:
-      - "caddy.subdomain=website"
-      - "caddy.port=80"
-      - "com.centurylinklabs.watchtower.enable=true"
-
-  plex:
-    image: plexinc/pms-docker:latest
-    container_name: homelab-plex
-    environment:
-      - PLEX_CLAIM=your-plex-claim-token
-      - PUID=1000
-      - PGID=1000
-      - TZ=America/New_York
-    volumes:
-      - plex_config:/config
-      - plex_media:/media
-    ports:
-      - "32400:32400"
-    networks:
-      - homelab-net
-    restart: unless-stopped
-    labels:
-      - "caddy.subdomain=plex"
-      - "caddy.port=32400"
-      - "com.centurylinklabs.watchtower.enable=true"
-
-  jellyfin:
-    image: jellyfin/jellyfin:latest
-    container_name: homelab-jellyfin
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=America/New_York
-    volumes:
-      - jellyfin_config:/config
-      - jellyfin_cache:/cache
-      - jellyfin_media:/media
-    ports:
-      - "8096:8096"
-    networks:
-      - homelab-net
-    restart: unless-stopped
-    labels:
-      - "caddy.subdomain=jellyfin"
-      - "caddy.port=8096"
-      - "com.centurylinklabs.watchtower.enable=true"
-
-  portainer:
-    image: portainer/portainer-ce:latest
-    container_name: homelab-portainer
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
-    ports:
-      - "9000:9000"
-    networks:
-      - homelab-net
-    restart: unless-stopped
-    labels:
-      - "caddy.subdomain=portainer"
-      - "caddy.port=9000"
-      - "com.centurylinklabs.watchtower.enable=true"
+      caddy.expose: "true"
+      caddy.root: "true"          # this service becomes the root site
+      caddy.host_port: "8080"     # host-side port (left side of HOST:CONTAINER)
 
 networks:
   homelab-net:
     external: true
-
-volumes:
-  plex_config:
-  plex_media:
-  jellyfin_config:
-  jellyfin_cache:
-  jellyfin_media:
-  portainer_data:

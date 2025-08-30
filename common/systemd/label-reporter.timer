@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Label Reporter every 30 seconds
+Requires=label-reporter.service
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+Unit=label-reporter.service
+
+[Install]
+WantedBy=timers.target
