@@ -1,14 +1,25 @@
 [Unit]
 Description=Redeploy Docker stack on homelab after git sync
-After=git-sync.service
-Requires=git-sync.service
+After=git-sync.service docker.service
+Requires=git-sync.service docker.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=/opt/home-lab/homelab
-ExecStart=/bin/bash -c 'find . -name "docker-compose.yml" -execdir /usr/local/bin/docker compose up -d \;'
 User=root
 Group=docker
+WorkingDirectory=/opt/home-lab/homelab
+Environment=COMPOSE_PROJECT_NAME=homelab
+EnvironmentFile=-/opt/home-lab/homelab/.env
+ExecStart=/usr/bin/docker compose up -d
+StandardOutput=journal
+StandardError=journal
+# Restart only if exit code isn't 0
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=10
+# Set reasonable timeouts
+TimeoutStartSec=300
+TimeoutStopSec=60
 
 [Install]
 WantedBy=multi-user.target
