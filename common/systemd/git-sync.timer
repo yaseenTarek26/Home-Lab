@@ -1,8 +1,9 @@
 [Unit]
 Description=Run git sync every 2 minutes
+Requires=git-sync.service
 
 [Timer]
-OnBootSec=1min
+OnBootSec=2min
 OnUnitActiveSec=2min
 Unit=git-sync.service
 

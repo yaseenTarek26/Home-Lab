@@ -1,6 +1,7 @@
 version: "3.9"
 
 services:
+
   caddy:
     image: caddy:latest
     container_name: edge-caddy
@@ -8,31 +9,21 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    depends_on:
+      duckdns:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     ports:
       - "80:80"
       - "443:443"
     restart: unless-stopped
     networks:
       - edge-net
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-
-  duckdns:
-    image: lscr.io/linuxserver/duckdns:latest
-    container_name: edge-duckdns
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=America/New_York
-      - SUBDOMAINS=yourusername
-      - TOKEN=your-duckdns-token
-      - UPDATE_IP=ipv4
-      - LOG_FILE=false
-    volumes:
-      - duckdns_config:/config
-    restart: unless-stopped
-    networks:
-      - edge-net
+      - homelab-net
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
@@ -40,7 +31,7 @@ services:
     image: containrrr/watchtower:latest
     container_name: edge-watchtower
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_POLL_INTERVAL=3600
@@ -48,12 +39,33 @@ services:
     restart: unless-stopped
     networks:
       - edge-net
+      
+  duckdns:
+    image: linuxserver/duckdns:latest
+    container_name: edge-duckdns
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-America/New_York}
+      - SUBDOMAINS=${DUCKDNS_SUBDOMAIN:-yourusername}
+      - TOKEN=${DUCKDNS_TOKEN:-your-duckdns-token}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf https://www.duckdns.org/update?domains=${DUCKDNS_SUBDOMAIN:-yourusername}&token=${DUCKDNS_TOKEN:-your-duckdns-token}&ip= || exit 1"]
+      interval: 300s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - edge-net
 
 networks:
   edge-net:
     driver: bridge
+  homelab-net:
+    external: true
 
 volumes:
   caddy_data:
   caddy_config:
-  duckdns_config:
+
+  

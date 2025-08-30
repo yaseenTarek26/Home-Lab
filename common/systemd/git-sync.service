@@ -1,14 +1,11 @@
 [Unit]
-Description=Sync home-lab repository from GitHub
+Description=Git sync service for home-lab repository
 After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/opt/home-lab/common/scripts/git-sync.sh
 User=root
-Group=root
+WorkingDirectory=/opt/home-lab
+ExecStart=/opt/home-lab/common/scripts/git-sync.sh
 StandardOutput=journal
 StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
