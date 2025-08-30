@@ -5,12 +5,18 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=/opt/home-lab/homelab/label-reporter
-ExecStart=/opt/home-lab/homelab/label-reporter/report-labels.sh
 User=root
 Group=docker
+WorkingDirectory=/opt/home-lab/homelab/label-reporter
+EnvironmentFile=-/opt/home-lab/homelab/label-reporter/.env
+ExecStart=/opt/home-lab/homelab/label-reporter/report-labels.sh
 StandardOutput=journal
 StandardError=journal
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=60
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target

@@ -33,6 +33,11 @@ error_exit() {
 validate_requirements() {
     log "Validating requirements..."
     
+    # Check Docker networks
+    if ! docker network ls | grep -q "homelab-net"; then
+        error_exit "homelab-net network not found. Please ensure the Docker network is created."
+    fi
+    
     # Check for required tools
     if ! command -v yq >/dev/null 2>&1; then
         error_exit "yq is required but not installed. Run: curl -sSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq"

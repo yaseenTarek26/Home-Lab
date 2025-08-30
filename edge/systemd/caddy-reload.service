@@ -1,14 +1,22 @@
 [Unit]
 Description=Regenerate Caddyfile from Docker labels
-After=docker.service
-Requires=docker.service
+After=docker.service network-online.target
+Requires=docker.service network-online.target
 
 [Service]
 Type=oneshot
+User=root
+Group=docker
 WorkingDirectory=/opt/home-lab/edge
+EnvironmentFile=-/opt/home-lab/edge/config.env
 ExecStart=/usr/bin/bash generate-caddyfile.sh
 StandardOutput=journal
 StandardError=journal
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=60
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target

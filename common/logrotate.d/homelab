@@ -1,0 +1,14 @@
+/var/log/git-sync.log
+/var/log/docker-redeploy.log
+/var/log/caddy-generator.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0644 root root
+    postrotate
+        systemctl kill -s USR1 systemd-journald
+    endscript
+}
